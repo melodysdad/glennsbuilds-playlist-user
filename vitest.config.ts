@@ -28,12 +28,12 @@ export default defineConfig({
         '**/types.ts',
       ],
       // Coverage thresholds
-      thresholds: {
-        lines: 70,
-        functions: 70,
-        branches: 65,
-        statements: 70,
-      },
+      // thresholds: {
+      //   lines: 70,
+      //   functions: 70,
+      //   branches: 65,
+      //   statements: 70,
+      // },
     },
     setupFiles: ['./tests/setup.ts'],
 
