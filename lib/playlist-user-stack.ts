@@ -1,36 +1,19 @@
 import * as cdk from 'aws-cdk-lib';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
-import * as apigatewayv2 from 'aws-cdk-lib/aws-apigatewayv2';
-import * as apigatewayv2Authorizers from 'aws-cdk-lib/aws-apigatewayv2-authorizers';
-import * as apigatewayv2Integrations from 'aws-cdk-lib/aws-apigatewayv2-integrations';
-import * as cognito from 'aws-cdk-lib/aws-cognito';
 import * as kms from 'aws-cdk-lib/aws-kms';
-import * as acm from 'aws-cdk-lib/aws-certificatemanager';
-import * as route53 from 'aws-cdk-lib/aws-route53';
-import * as route53Targets from 'aws-cdk-lib/aws-route53-targets';
-import * as iam from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 import * as path from 'path';
 
 export interface PlaylistUserStackProps extends cdk.StackProps {
   stage: string;
-  hostedZoneId?: string;
-  hostedZoneName?: string;
-  domainName?: string;
-  googleClientId?: string;
-  googleClientSecret?: string;
 }
 
 export class PlaylistUserStack extends cdk.Stack {
-  public readonly userPool: cognito.UserPool;
-  public readonly userPoolClient: cognito.UserPoolClient;
-  public readonly httpApi: apigatewayv2.HttpApi;
-
   constructor(scope: Construct, id: string, props: PlaylistUserStackProps) {
     super(scope, id, props);
 
-    const { stage, hostedZoneId, hostedZoneName, domainName, googleClientId, googleClientSecret } = props;
+    const { stage } = props;
 
     // ============================================
     // KMS Key for encrypting sensitive user data
@@ -93,97 +76,6 @@ export class PlaylistUserStack extends cdk.Stack {
     });
 
     // ============================================
-    // Cognito User Pool
-    // ============================================
-    this.userPool = new cognito.UserPool(this, 'UserPool', {
-      userPoolName: `playlist-users-${stage}`,
-      signInAliases: {
-        email: true,
-      },
-      standardAttributes: {
-        email: {
-          required: true,
-          mutable: false,
-        },
-      },
-      passwordPolicy: {
-        minLength: 8,
-        requireLowercase: true,
-        requireUppercase: true,
-        requireDigits: true,
-        requireSymbols: true,
-      },
-      autoVerify: {
-        email: true,
-      },
-      accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
-      mfa: cognito.Mfa.OPTIONAL,
-      mfaSecondFactor: {
-        sms: false,
-        otp: true,
-      },
-      removalPolicy: stage === 'prod' ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
-    });
-
-    // Cognito User Pool Domain
-    const userPoolDomain = this.userPool.addDomain('UserPoolDomain', {
-      cognitoDomain: {
-        domainPrefix: `glennsbuilds-playlist-user-${stage}-${this.account}`,
-      },
-    });
-
-    // Cognito User Pool Client
-    this.userPoolClient = this.userPool.addClient('UserPoolClient', {
-      userPoolClientName: `playlist-user-web-client-${stage}`,
-      authFlows: {
-        userPassword: true,
-        userSrp: true,
-      },
-      oAuth: {
-        flows: {
-          authorizationCodeGrant: true,
-          implicitCodeGrant: true,
-        },
-        scopes: [cognito.OAuthScope.EMAIL, cognito.OAuthScope.OPENID, cognito.OAuthScope.PROFILE],
-        callbackUrls: [
-          domainName ? `https://${domainName}/callback` : 'http://localhost:3000/callback',
-        ],
-        logoutUrls: [
-          domainName ? `https://${domainName}/logout` : 'http://localhost:3000/logout',
-        ],
-      },
-      accessTokenValidity: cdk.Duration.minutes(60),
-      idTokenValidity: cdk.Duration.minutes(60),
-      refreshTokenValidity: cdk.Duration.days(30),
-      preventUserExistenceErrors: true,
-      readAttributes: new cognito.ClientAttributes().withStandardAttributes({
-        email: true,
-        emailVerified: true,
-      }),
-      writeAttributes: new cognito.ClientAttributes().withStandardAttributes({
-        email: true,
-      }),
-    });
-
-    // Google Identity Provider (optional)
-    if (googleClientId && googleClientSecret && googleClientId !== 'placeholder-google-client-id') {
-      const googleProvider = new cognito.UserPoolIdentityProviderGoogle(this, 'GoogleProvider', {
-        userPool: this.userPool,
-        clientId: googleClientId,
-        clientSecret: googleClientSecret,
-        scopes: ['email', 'openid', 'profile'],
-        attributeMapping: {
-          email: cognito.ProviderAttribute.GOOGLE_EMAIL,
-          givenName: cognito.ProviderAttribute.GOOGLE_GIVEN_NAME,
-          familyName: cognito.ProviderAttribute.GOOGLE_FAMILY_NAME,
-          profilePicture: cognito.ProviderAttribute.GOOGLE_PICTURE,
-        },
-      });
-
-      this.userPoolClient.node.addDependency(googleProvider);
-    }
-
-    // ============================================
     // Lambda Functions
     // ============================================
 
@@ -198,8 +90,6 @@ export class PlaylistUserStack extends cdk.Stack {
       PLAYLIST_SERVICE_GET_FUNCTION: `playlist-generation-service-${stage}-getPlaylist`,
       NODE_ENV: stage,
       AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1',
-      USER_POOL_ID: this.userPool.userPoolId,
-      USER_POOL_CLIENT_ID: this.userPoolClient.userPoolClientId,
     };
 
     // Common Lambda properties
@@ -284,7 +174,7 @@ export class PlaylistUserStack extends cdk.Stack {
 
       // Grant permission to invoke playlist generation service
       fn.addToRolePolicy(
-        new iam.PolicyStatement({
+        new cdk.aws_iam.PolicyStatement({
           actions: ['lambda:InvokeFunction'],
           resources: [
             `arn:aws:lambda:${this.region}:${this.account}:function:playlist-generation-service-${stage}-preview`,
@@ -296,122 +186,62 @@ export class PlaylistUserStack extends cdk.Stack {
     });
 
     // ============================================
-    // HTTP API Gateway with Cognito Authorizer
-    // ============================================
-
-    // JWT Authorizer
-    const authorizer = new apigatewayv2Authorizers.HttpUserPoolAuthorizer(
-      'CognitoAuthorizer',
-      this.userPool,
-      {
-        userPoolClients: [this.userPoolClient],
-        identitySource: ['$request.header.Authorization'],
-      }
-    );
-
-    // HTTP API
-    this.httpApi = new apigatewayv2.HttpApi(this, 'HttpApi', {
-      apiName: `playlist-user-api-${stage}`,
-      description: 'User management and playlist service API',
-      corsPreflight: {
-        allowOrigins: ['*'],
-        allowMethods: [apigatewayv2.CorsHttpMethod.ANY],
-        allowHeaders: ['*'],
-      },
-    });
-
-    // Define routes
-    const routes = [
-      { path: '/user/preferences', method: apigatewayv2.HttpMethod.GET, function: getUserPreferencesFunction },
-      { path: '/user/preferences', method: apigatewayv2.HttpMethod.POST, function: updateUserPreferencesFunction },
-      { path: '/user/suppression', method: apigatewayv2.HttpMethod.POST, function: addSuppressionFunction },
-      { path: '/user/history', method: apigatewayv2.HttpMethod.GET, function: getPlaylistHistoryFunction },
-      { path: '/user/{userId}/playlist/preview', method: apigatewayv2.HttpMethod.POST, function: playlistPreviewFunction },
-      { path: '/user/{userId}/playlist/{playlistId}/complete', method: apigatewayv2.HttpMethod.POST, function: playlistCompleteFunction },
-      { path: '/user/{userId}/playlist/{playlistId}', method: apigatewayv2.HttpMethod.GET, function: playlistGetFunction },
-    ];
-
-    routes.forEach((route, index) => {
-      new apigatewayv2.HttpRoute(this, `Route${index}`, {
-        httpApi: this.httpApi,
-        routeKey: apigatewayv2.HttpRouteKey.with(route.path, route.method),
-        integration: new apigatewayv2Integrations.HttpLambdaIntegration(`Integration${index}`, route.function),
-        authorizer,
-      });
-    });
-
-    // ============================================
-    // Custom Domain (Optional)
-    // ============================================
-    if (hostedZoneId && hostedZoneName && domainName) {
-      const hostedZone = route53.HostedZone.fromHostedZoneAttributes(this, 'HostedZone', {
-        hostedZoneId,
-        zoneName: hostedZoneName,
-      });
-
-      const certificate = new acm.Certificate(this, 'Certificate', {
-        domainName,
-        validation: acm.CertificateValidation.fromDns(hostedZone),
-      });
-
-      const customDomain = new apigatewayv2.DomainName(this, 'CustomDomain', {
-        domainName,
-        certificate,
-      });
-
-      new apigatewayv2.ApiMapping(this, 'ApiMapping', {
-        api: this.httpApi,
-        domainName: customDomain,
-        stage: this.httpApi.defaultStage,
-      });
-
-      new route53.ARecord(this, 'DomainARecord', {
-        zone: hostedZone,
-        recordName: domainName,
-        target: route53.RecordTarget.fromAlias(
-          new route53Targets.ApiGatewayv2DomainProperties(
-            customDomain.regionalDomainName,
-            customDomain.regionalHostedZoneId
-          )
-        ),
-      });
-    }
-
-    // ============================================
     // Outputs
     // ============================================
-    new cdk.CfnOutput(this, 'UserPoolId', {
-      value: this.userPool.userPoolId,
-      description: 'Cognito User Pool ID',
-      exportName: `${stage}-UserPoolId`,
-    });
-
-    new cdk.CfnOutput(this, 'UserPoolClientId', {
-      value: this.userPoolClient.userPoolClientId,
-      description: 'Cognito User Pool Client ID',
-      exportName: `${stage}-UserPoolClientId`,
-    });
-
-    new cdk.CfnOutput(this, 'CognitoHostedUIUrl', {
-      value: `https://${userPoolDomain.domainName}.auth.${this.region}.amazoncognito.com`,
-      description: 'Cognito Hosted UI URL for login',
-    });
-
-    new cdk.CfnOutput(this, 'HttpApiUrl', {
-      value: this.httpApi.url || '',
-      description: 'HTTP API endpoint URL',
-    });
-
     new cdk.CfnOutput(this, 'PlaylistsTableName', {
       value: playlistsTable.tableName,
       description: 'DynamoDB table for playlist persistence',
     });
 
-    if (domainName) {
-      new cdk.CfnOutput(this, 'CustomDomainUrl', {
-        value: `https://${domainName}`,
-        description: 'Custom domain URL for the API',
-      });
-    }
+    new cdk.CfnOutput(this, 'UserProfilesTableName', {
+      value: userProfilesTable.tableName,
+      description: 'DynamoDB table for user profiles',
+    });
+
+    new cdk.CfnOutput(this, 'SuppressionsTableName', {
+      value: suppressionsTable.tableName,
+      description: 'DynamoDB table for suppressions',
+    });
+
+    new cdk.CfnOutput(this, 'ServiceCredentialsTableName', {
+      value: serviceCredentialsTable.tableName,
+      description: 'DynamoDB table for service credentials',
+    });
+
+    // Export Lambda function names for API Gateway to reference
+    new cdk.CfnOutput(this, 'GetUserPreferencesFunctionName', {
+      value: getUserPreferencesFunction.functionName,
+      exportName: `${stage}-GetUserPreferencesFunctionName`,
+    });
+
+    new cdk.CfnOutput(this, 'UpdateUserPreferencesFunctionName', {
+      value: updateUserPreferencesFunction.functionName,
+      exportName: `${stage}-UpdateUserPreferencesFunctionName`,
+    });
+
+    new cdk.CfnOutput(this, 'AddSuppressionFunctionName', {
+      value: addSuppressionFunction.functionName,
+      exportName: `${stage}-AddSuppressionFunctionName`,
+    });
+
+    new cdk.CfnOutput(this, 'GetPlaylistHistoryFunctionName', {
+      value: getPlaylistHistoryFunction.functionName,
+      exportName: `${stage}-GetPlaylistHistoryFunctionName`,
+    });
+
+    new cdk.CfnOutput(this, 'PlaylistPreviewFunctionName', {
+      value: playlistPreviewFunction.functionName,
+      exportName: `${stage}-PlaylistPreviewFunctionName`,
+    });
+
+    new cdk.CfnOutput(this, 'PlaylistCompleteFunctionName', {
+      value: playlistCompleteFunction.functionName,
+      exportName: `${stage}-PlaylistCompleteFunctionName`,
+    });
+
+    new cdk.CfnOutput(this, 'PlaylistGetFunctionName', {
+      value: playlistGetFunction.functionName,
+      exportName: `${stage}-PlaylistGetFunctionName`,
+    });
   }
 }
