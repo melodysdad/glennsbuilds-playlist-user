@@ -2,8 +2,9 @@
  * Unit tests for get-playlist-history Lambda handler
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { APIGatewayProxyEvent } from 'aws-lambda';
+
 import { handler } from '../../src/lambda/user/get-playlist-history.js';
 import {
   MockStorage,
@@ -20,7 +21,7 @@ const { mockStorageRef } = vi.hoisted(() => {
 // Mock the storage layer - class constructor returns the mock instance
 vi.mock('../../src/storage/s3-storage.js', () => {
   return {
-    S3Storage: class {
+    S3Storage: class {'vitest'
       constructor() {
         if (!mockStorageRef.current) {
           throw new Error('Mock storage not initialized in beforeEach');
@@ -100,6 +101,7 @@ function createMockEvent(
         userAgent: null,
         userArn: null,
       },
+      authorizer: undefined
     },
     resource: '',
   };
