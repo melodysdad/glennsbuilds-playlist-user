@@ -318,6 +318,7 @@ export class PlaylistUserStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'CloudMapNamespaceId', {
       value: namespace.namespaceId,
       description: 'Service discovery namespace ID',
+      exportName: `${stage}-CloudMapNamespaceId`,
     });
 
     new cdk.CfnOutput(this, 'PlaylistUserServiceArn', {
