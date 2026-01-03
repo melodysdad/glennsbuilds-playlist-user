@@ -1,0 +1,55 @@
+{
+  "name": "glennsbuilds-playlist-user",
+  "version": "1.0.0",
+  "description": "User management and playlist service for glennsbuilds playlist application",
+  "type": "module",
+  "main": "build/index.js",
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "test": "vitest run tests/lambda tests/storage tests/integration tests/tools",
+    "test:watch": "vitest tests/lambda tests/storage tests/integration tests/tools",
+    "test:coverage": "vitest run --coverage tests/lambda tests/storage tests/integration tests/tools",
+    "test:unit": "vitest run tests/lambda tests/storage",
+    "test:integration": "vitest run tests/integration",
+    "test:lambda": "vitest run tests/lambda",
+    "test:all": "npm run type-check && npm run lint && npm run test:coverage",
+    "lint": "eslint src tests",
+    "lint:fix": "eslint src tests --fix",
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "type-check": "tsc --noEmit",
+    "prepare": "npm run build",
+    "dev": "npm run build:watch",
+    "deploy": "serverless deploy --verbose",
+    "deploy:prod": "serverless deploy --stage prod --verbose",
+    "remove": "serverless remove"
+  },
+  "keywords": [
+    "playlist",
+    "user",
+    "lambda",
+    "aws"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.958.0",
+    "@aws-sdk/client-lambda": "^3.709.0",
+    "@aws-sdk/util-dynamodb": "^3.958.0"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.709.0",
+    "@eslint/js": "^9.17.0",
+    "@types/aws-lambda": "^8.10.145",
+    "@types/node": "^22.10.2",
+    "@vitest/coverage-v8": "^2.1.8",
+    "eslint": "^9.17.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.4.2",
+    "serverless": "^3.39.0",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.18.2",
+    "vitest": "^2.1.8"
+  }
+}
