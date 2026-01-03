@@ -1,11 +1,19 @@
 /**
  * Client for invoking the playlist generation microservice
  * Handles Lambda-to-Lambda invocation for playlist operations
+ * Uses AWS Cloud Map for service discovery with fallback to environment variables
  */
 
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
+import {
+  ServiceDiscoveryClient,
+  DiscoverInstancesCommand,
+} from '@aws-sdk/client-servicediscovery';
 
 const lambda = new LambdaClient({ region: process.env.AWS_REGION });
+const serviceDiscovery = new ServiceDiscoveryClient({
+  region: process.env.AWS_REGION,
+});
 
 export interface PreviewRequest {
   prompt: string;
@@ -64,13 +72,81 @@ export interface GetPlaylistResponse {
 }
 
 export class PlaylistServiceClient {
+  // Cache discovered function names to avoid repeated Cloud Map lookups
+  private previewFunctionName?: string;
+  private completeFunctionName?: string;
+  private getFunctionName?: string;
+  private discoveryAttempted = false;
+
+  /**
+   * Discover playlist-generation service from Cloud Map
+   * Falls back to environment variables if discovery fails
+   */
+  private async discoverService(): Promise<void> {
+    if (this.discoveryAttempted) {
+      return; // Only attempt discovery once per Lambda instance
+    }
+
+    this.discoveryAttempted = true;
+
+    const namespace = process.env.CLOUD_MAP_NAMESPACE;
+    const serviceName = process.env.CLOUD_MAP_SERVICE_NAME;
+
+    if (!namespace || !serviceName) {
+      console.error('Cloud Map not configured, using environment variables');
+      return; // Fall back to env vars
+    }
+
+    try {
+      console.error('Discovering service from Cloud Map:', {
+        namespace,
+        serviceName,
+      });
+
+      const response = await serviceDiscovery.send(
+        new DiscoverInstancesCommand({
+          NamespaceName: namespace,
+          ServiceName: serviceName,
+        })
+      );
+
+      const instance = response.Instances?.[0];
+      if (!instance?.Attributes) {
+        console.error('No instances found in Cloud Map, using environment variables');
+        return; // Fall back to env vars
+      }
+
+      // Extract function names from Cloud Map attributes
+      this.previewFunctionName = instance.Attributes.previewFunction;
+      this.completeFunctionName = instance.Attributes.completeFunction;
+      this.getFunctionName = instance.Attributes.getFunction;
+
+      console.error('Service discovered from Cloud Map:', {
+        previewFunction: this.previewFunctionName,
+        completeFunction: this.completeFunctionName,
+        getFunction: this.getFunctionName,
+      });
+    } catch (error) {
+      console.error('Cloud Map discovery failed, using environment variables:', error);
+      // Fall back to env vars (no-op, properties remain undefined)
+    }
+  }
+
   /**
    * Fetch a 10-track preview playlist
    */
   async fetchPreview(request: PreviewRequest): Promise<PreviewResponse> {
-    const functionName = process.env.PLAYLIST_SERVICE_PREVIEW_FUNCTION;
+    // Try Cloud Map discovery first
+    await this.discoverService();
+
+    // Use discovered function name, fall back to environment variable
+    const functionName =
+      this.previewFunctionName || process.env.PLAYLIST_SERVICE_PREVIEW_FUNCTION;
+
     if (!functionName) {
-      throw new Error('PLAYLIST_SERVICE_PREVIEW_FUNCTION not configured');
+      throw new Error(
+        'PLAYLIST_SERVICE_PREVIEW_FUNCTION not configured and not found in Cloud Map'
+      );
     }
 
     console.error('Invoking playlist service:', {
@@ -123,9 +199,17 @@ export class PlaylistServiceClient {
    * Start full 50-track playlist generation (async)
    */
   async complete(request: CompleteRequest): Promise<CompleteResponse> {
-    const functionName = process.env.PLAYLIST_SERVICE_COMPLETE_FUNCTION;
+    // Try Cloud Map discovery first
+    await this.discoverService();
+
+    // Use discovered function name, fall back to environment variable
+    const functionName =
+      this.completeFunctionName || process.env.PLAYLIST_SERVICE_COMPLETE_FUNCTION;
+
     if (!functionName) {
-      throw new Error('PLAYLIST_SERVICE_COMPLETE_FUNCTION not configured');
+      throw new Error(
+        'PLAYLIST_SERVICE_COMPLETE_FUNCTION not configured and not found in Cloud Map'
+      );
     }
 
     console.error('Invoking complete service:', {
@@ -179,9 +263,17 @@ export class PlaylistServiceClient {
   async getPlaylist(
     request: GetPlaylistRequest
   ): Promise<GetPlaylistResponse> {
-    const functionName = process.env.PLAYLIST_SERVICE_GET_FUNCTION;
+    // Try Cloud Map discovery first
+    await this.discoverService();
+
+    // Use discovered function name, fall back to environment variable
+    const functionName =
+      this.getFunctionName || process.env.PLAYLIST_SERVICE_GET_FUNCTION;
+
     if (!functionName) {
-      throw new Error('PLAYLIST_SERVICE_GET_FUNCTION not configured');
+      throw new Error(
+        'PLAYLIST_SERVICE_GET_FUNCTION not configured and not found in Cloud Map'
+      );
     }
 
     console.error('Invoking get playlist service:', {
