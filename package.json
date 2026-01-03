@@ -21,33 +21,44 @@
     "type-check": "tsc --noEmit",
     "prepare": "npm run build",
     "dev": "npm run build:watch",
-    "deploy": "serverless deploy --verbose",
-    "deploy:prod": "serverless deploy --stage prod --verbose",
-    "remove": "serverless remove"
+    "cdk": "cdk",
+    "cdk:synth": "cdk synth",
+    "cdk:deploy": "cdk deploy --all",
+    "cdk:deploy:dev": "cdk deploy --all --context stage=dev",
+    "cdk:deploy:prod": "cdk deploy --all --context stage=prod",
+    "cdk:destroy": "cdk destroy --all",
+    "cdk:diff": "cdk diff",
+    "cdk:bootstrap": "cdk bootstrap"
   },
   "keywords": [
     "playlist",
     "user",
     "lambda",
-    "aws"
+    "aws",
+    "cdk"
   ],
   "author": "",
   "license": "MIT",
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.958.0",
     "@aws-sdk/client-lambda": "^3.709.0",
-    "@aws-sdk/util-dynamodb": "^3.958.0"
+    "@aws-sdk/util-dynamodb": "^3.958.0",
+    "source-map-support": "^0.5.21"
   },
   "devDependencies": {
     "@aws-sdk/client-cognito-identity-provider": "^3.709.0",
     "@eslint/js": "^9.17.0",
     "@types/aws-lambda": "^8.10.145",
     "@types/node": "^22.10.2",
+    "@types/source-map-support": "^0.5.10",
     "@vitest/coverage-v8": "^2.1.8",
+    "aws-cdk": "^2.172.0",
+    "aws-cdk-lib": "^2.172.0",
+    "constructs": "^10.4.2",
     "eslint": "^9.17.0",
     "eslint-config-prettier": "^9.1.0",
     "prettier": "^3.4.2",
-    "serverless": "^3.39.0",
+    "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.18.2",
     "vitest": "^2.1.8"
