@@ -5,7 +5,7 @@
   "type": "module",
   "main": "build/index.js",
   "scripts": {
-    "build": "tsc && tsx scripts/generate-openapi.ts",
+    "build": "tsc && cp package.json build/ && tsx scripts/generate-openapi.ts",
     "build:watch": "tsc --watch",
     "generate:openapi": "tsx scripts/generate-openapi.ts",
     "test": "vitest run tests/lambda tests/storage tests/integration tests/tools",
