@@ -21,6 +21,19 @@ export class PlaylistUserStack extends cdk.Stack {
     const { stage } = props;
 
     // ============================================
+    // Import Playlist Service function names from playlist stack
+    // ============================================
+    const playlistServicePreviewFunctionName = cdk.Fn.importValue(
+      `${stage}-PlaylistPreviewFunctionName`
+    );
+    const playlistServiceCompleteFunctionName = cdk.Fn.importValue(
+      `${stage}-PlaylistCompleteFunctionName`
+    );
+    const playlistServiceGetFunctionName = cdk.Fn.importValue(
+      `${stage}-PlaylistGetFunctionName`
+    );
+
+    // ============================================
     // KMS Key for encrypting sensitive user data
     // ============================================
     const userDataEncryptionKey = new kms.Key(this, 'UserDataEncryptionKey', {
@@ -92,6 +105,10 @@ export class PlaylistUserStack extends cdk.Stack {
       SERVICE_CREDENTIALS_TABLE: serviceCredentialsTable.tableName,
       NODE_ENV: stage,
       AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1',
+      // Playlist Service function names (imported from playlist stack)
+      PLAYLIST_SERVICE_PREVIEW_FUNCTION: playlistServicePreviewFunctionName,
+      PLAYLIST_SERVICE_COMPLETE_FUNCTION: playlistServiceCompleteFunctionName,
+      PLAYLIST_SERVICE_GET_FUNCTION: playlistServiceGetFunctionName,
     };
 
     // Common Lambda properties
@@ -188,9 +205,9 @@ export class PlaylistUserStack extends cdk.Stack {
         new cdk.aws_iam.PolicyStatement({
           actions: ['lambda:InvokeFunction'],
           resources: [
-            `arn:aws:lambda:${this.region}:${this.account}:function:playlist-generation-service-${stage}-preview`,
-            `arn:aws:lambda:${this.region}:${this.account}:function:playlist-generation-service-${stage}-complete`,
-            `arn:aws:lambda:${this.region}:${this.account}:function:playlist-generation-service-${stage}-getPlaylist`,
+            `arn:aws:lambda:${this.region}:${this.account}:function:${playlistServicePreviewFunctionName}`,
+            `arn:aws:lambda:${this.region}:${this.account}:function:${playlistServiceCompleteFunctionName}`,
+            `arn:aws:lambda:${this.region}:${this.account}:function:${playlistServiceGetFunctionName}`,
           ],
         })
       );
