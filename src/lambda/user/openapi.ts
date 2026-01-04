@@ -17,7 +17,6 @@ let cachedSpec: string | null = null;
 
 try {
   cachedSpec = fs.readFileSync(specPath, 'utf-8');
-  console.log('OpenAPI spec loaded successfully');
 } catch (error) {
   console.error('Failed to load OpenAPI spec:', error);
 }
@@ -26,6 +25,7 @@ try {
  * Lambda handler for serving OpenAPI specification
  */
 export async function handler(
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   event: APIGatewayProxyEvent
 ): Promise<APIGatewayProxyResult> {
   try {
