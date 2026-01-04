@@ -235,9 +235,9 @@ export class PlaylistUserStack extends cdk.Stack {
       exportName: `${stage}-AddSuppressionFunctionName`,
     });
 
-    new cdk.CfnOutput(this, 'GetPlaylistHistoryFunctionName', {
+    new cdk.CfnOutput(this, 'GetUserPlaylistHistoryFunctionName', {
       value: getPlaylistHistoryFunction.functionName,
-      exportName: `${stage}-GetPlaylistHistoryFunctionName`,
+      exportName: `${stage}-GetUserPlaylistHistoryFunctionName`,
     });
 
     new cdk.CfnOutput(this, 'UserPlaylistPreviewFunctionName', {
@@ -245,19 +245,19 @@ export class PlaylistUserStack extends cdk.Stack {
       exportName: `${stage}-UserPlaylistPreviewFunctionName`,
     });
 
-    new cdk.CfnOutput(this, 'PlaylistCompleteFunctionName', {
+    new cdk.CfnOutput(this, 'UserPlaylistCompleteFunctionName', {
       value: playlistCompleteFunction.functionName,
-      exportName: `${stage}-PlaylistCompleteFunctionName`,
+      exportName: `${stage}-UserPlaylistCompleteFunctionName`,
     });
 
-    new cdk.CfnOutput(this, 'PlaylistGetFunctionName', {
+    new cdk.CfnOutput(this, 'UserPlaylistGetFunctionName', {
       value: playlistGetFunction.functionName,
-      exportName: `${stage}-PlaylistGetFunctionName`,
+      exportName: `${stage}-UserPlaylistGetFunctionName`,
     });
 
-    new cdk.CfnOutput(this, 'OpenApiFunctionName', {
+    new cdk.CfnOutput(this, 'UserPlaylistOpenApiFunctionName', {
       value: openapiFunction.functionName,
-      exportName: `${stage}-OpenApiFunctionName`,
+      exportName: `${stage}-UserPlaylistOpenApiFunctionName`,
     });
   }
 }
