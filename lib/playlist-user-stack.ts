@@ -240,9 +240,9 @@ export class PlaylistUserStack extends cdk.Stack {
       exportName: `${stage}-GetPlaylistHistoryFunctionName`,
     });
 
-    new cdk.CfnOutput(this, 'PlaylistPreviewFunctionName', {
+    new cdk.CfnOutput(this, 'UserPlaylistPreviewFunctionName', {
       value: playlistPreviewFunction.functionName,
-      exportName: `${stage}-PlaylistPreviewFunctionName`,
+      exportName: `${stage}-UserPlaylistPreviewFunctionName`,
     });
 
     new cdk.CfnOutput(this, 'PlaylistCompleteFunctionName', {
