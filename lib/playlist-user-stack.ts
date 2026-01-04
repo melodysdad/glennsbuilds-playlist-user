@@ -2,7 +2,6 @@ import * as cdk from 'aws-cdk-lib';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as kms from 'aws-cdk-lib/aws-kms';
-import * as servicediscovery from 'aws-cdk-lib/aws-servicediscovery';
 import { Construct } from 'constructs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
@@ -91,13 +90,6 @@ export class PlaylistUserStack extends cdk.Stack {
       USER_PROFILES_TABLE: userProfilesTable.tableName,
       SUPPRESSIONS_TABLE: suppressionsTable.tableName,
       SERVICE_CREDENTIALS_TABLE: serviceCredentialsTable.tableName,
-      // Cloud Map service discovery
-      CLOUD_MAP_NAMESPACE: `glennsbuilds-playlist-${stage}.local`,
-      CLOUD_MAP_SERVICE_NAME: 'playlist-generation',
-      // Fallback to hardcoded function names when Cloud Map discovery fails
-      PLAYLIST_SERVICE_PREVIEW_FUNCTION: `playlist-generation-service-${stage}-preview`,
-      PLAYLIST_SERVICE_COMPLETE_FUNCTION: `playlist-generation-service-${stage}-complete`,
-      PLAYLIST_SERVICE_GET_FUNCTION: `playlist-generation-service-${stage}-getPlaylist`,
       NODE_ENV: stage,
       AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1',
     };
@@ -164,6 +156,15 @@ export class PlaylistUserStack extends cdk.Stack {
       description: 'Get playlist status and tracks',
     });
 
+    const openapiFunction = new lambda.Function(this, 'OpenApiFunction', {
+      ...commonLambdaProps,
+      functionName: `playlist-user-${stage}-openapi`,
+      handler: 'lambda/user/openapi.handler',
+      description: 'Serve OpenAPI specification',
+      timeout: cdk.Duration.seconds(5),
+      memorySize: 128, // Less memory needed for serving static spec
+    });
+
     // Grant DynamoDB permissions
     const lambdaFunctions = [
       getUserPreferencesFunction,
@@ -193,60 +194,6 @@ export class PlaylistUserStack extends cdk.Stack {
           ],
         })
       );
-
-      // Grant permission to discover services via Cloud Map
-      fn.addToRolePolicy(
-        new cdk.aws_iam.PolicyStatement({
-          actions: [
-            'servicediscovery:DiscoverInstances',
-            'servicediscovery:GetService',
-          ],
-          resources: ['*'], // Cloud Map doesn't support resource-level permissions for DiscoverInstances
-        })
-      );
-    });
-
-    // ============================================
-    // AWS Cloud Map Service Discovery
-    // ============================================
-
-    // Create HTTP namespace for service discovery
-    const namespace = new servicediscovery.HttpNamespace(this, 'ServiceNamespace', {
-      name: `glennsbuilds-playlist-${stage}.local`,
-      description: `Service discovery namespace for glennsbuilds playlist services (${stage})`,
-    });
-
-    // Create service for playlist-user
-    const playlistUserService = namespace.createService('PlaylistUserService', {
-      name: 'playlist-user',
-      description: 'User management and playlist service',
-    });
-
-    // Register this service instance with all Lambda ARNs and DynamoDB table names
-    playlistUserService.registerNonIpInstance('PlaylistUserInstance', {
-      instanceId: `${stage}-playlist-user-instance`,
-      customAttributes: {
-        // Lambda Function ARNs
-        getUserPreferences: getUserPreferencesFunction.functionArn,
-        updateUserPreferences: updateUserPreferencesFunction.functionArn,
-        addSuppression: addSuppressionFunction.functionArn,
-        getPlaylistHistory: getPlaylistHistoryFunction.functionArn,
-        playlistPreview: playlistPreviewFunction.functionArn,
-        playlistComplete: playlistCompleteFunction.functionArn,
-        playlistGet: playlistGetFunction.functionArn,
-
-        // DynamoDB Table Names
-        playlistsTable: playlistsTable.tableName,
-        userProfilesTable: userProfilesTable.tableName,
-        suppressionsTable: suppressionsTable.tableName,
-        serviceCredentialsTable: serviceCredentialsTable.tableName,
-
-        // Metadata
-        stage: stage,
-        region: this.region,
-        version: '1.0.0',
-        deployedAt: new Date().toISOString(),
-      },
     });
 
     // ============================================
@@ -308,22 +255,9 @@ export class PlaylistUserStack extends cdk.Stack {
       exportName: `${stage}-PlaylistGetFunctionName`,
     });
 
-    // Cloud Map outputs
-    new cdk.CfnOutput(this, 'CloudMapNamespace', {
-      value: namespace.namespaceName,
-      description: 'Service discovery namespace for glennsbuilds playlist services',
-      exportName: `${stage}-CloudMapNamespace`,
-    });
-
-    new cdk.CfnOutput(this, 'CloudMapNamespaceId', {
-      value: namespace.namespaceId,
-      description: 'Service discovery namespace ID',
-      exportName: `${stage}-CloudMapNamespaceId`,
-    });
-
-    new cdk.CfnOutput(this, 'PlaylistUserServiceArn', {
-      value: playlistUserService.serviceArn,
-      description: 'Cloud Map service ARN for playlist-user',
+    new cdk.CfnOutput(this, 'OpenApiFunctionName', {
+      value: openapiFunction.functionName,
+      exportName: `${stage}-OpenApiFunctionName`,
     });
   }
 }

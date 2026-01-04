@@ -1,6 +1,8 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { DynamoDBUserRepository } from '../../storage/dynamodb-user-repository.js';
 import { successResponse, errorResponse } from '../shared/response.js';
+import { validateSchema } from '../shared/validation.js';
+import { UpdatePreferencesBodySchema } from '../../schemas/index.js';
 
 export async function handler(
   event: APIGatewayProxyEvent
@@ -9,19 +11,15 @@ export async function handler(
     console.error('Update preferences request received:', event.body);
 
     const body = JSON.parse(event.body || '{}');
-    const { userId, preferences, favoriteArtists, favoriteGenres } = body;
 
-    if (!userId) {
-      return errorResponse(new Error('userId is required'));
+    // Validate input
+    const validation = validateSchema(UpdatePreferencesBodySchema, body);
+    if (!validation.success) {
+      return validation.response;
     }
 
-    if (!preferences && !favoriteArtists && !favoriteGenres) {
-      return errorResponse(
-        new Error(
-          'At least one of preferences, favoriteArtists, or favoriteGenres is required'
-        )
-      );
-    }
+    const { userId, preferences, favoriteArtists, favoriteGenres } =
+      validation.data;
 
     const userRepo = new DynamoDBUserRepository();
 

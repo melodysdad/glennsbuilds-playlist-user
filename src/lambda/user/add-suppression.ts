@@ -2,6 +2,8 @@ import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { DynamoDBUserRepository } from '../../storage/dynamodb-user-repository.js';
 import { successResponse, errorResponse } from '../shared/response.js';
 import { Suppression } from '../../types.js';
+import { validateSchema } from '../shared/validation.js';
+import { AddSuppressionBodySchema } from '../../schemas/index.js';
 
 export async function handler(
   event: APIGatewayProxyEvent
@@ -10,19 +12,14 @@ export async function handler(
     console.error('Add suppression request received:', event.body);
 
     const body = JSON.parse(event.body || '{}');
-    const { userId, type, value, days } = body;
 
-    if (!userId || !type || !value || !days) {
-      return errorResponse(
-        new Error('userId, type, value, and days are required')
-      );
+    // Validate input
+    const validation = validateSchema(AddSuppressionBodySchema, body);
+    if (!validation.success) {
+      return validation.response;
     }
 
-    if (!['genre', 'artist', 'tag'].includes(type)) {
-      return errorResponse(
-        new Error('type must be one of: genre, artist, tag')
-      );
-    }
+    const { userId, type, value, days } = validation.data;
 
     const userRepo = new DynamoDBUserRepository();
 

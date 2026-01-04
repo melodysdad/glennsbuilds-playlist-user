@@ -10,8 +10,12 @@ import { DynamoDBUserRepository } from '../../storage/dynamodb-user-repository.j
 import {
   successResponse,
   errorResponse,
-  validationErrorResponse,
 } from '../shared/response.js';
+import { validateSchema } from '../shared/validation.js';
+import {
+  PlaylistPreviewPathSchema,
+  PlaylistPreviewBodySchema,
+} from '../../schemas/index.js';
 
 const playlistClient = new PlaylistServiceClient();
 const playlistRepo = new DynamoDBPlaylistRepository();
@@ -21,13 +25,24 @@ export async function handler(
   event: APIGatewayProxyEvent
 ): Promise<APIGatewayProxyResult> {
   try {
-    const userId = event.pathParameters?.userId;
-    const body = JSON.parse(event.body || '{}');
-    const { prompt } = body;
-
-    if (!userId || !prompt) {
-      return validationErrorResponse('userId and prompt are required');
+    // Validate path parameters
+    const pathValidation = validateSchema(
+      PlaylistPreviewPathSchema,
+      event.pathParameters
+    );
+    if (!pathValidation.success) {
+      return pathValidation.response;
     }
+
+    // Validate request body
+    const body = JSON.parse(event.body || '{}');
+    const bodyValidation = validateSchema(PlaylistPreviewBodySchema, body);
+    if (!bodyValidation.success) {
+      return bodyValidation.response;
+    }
+
+    const { userId } = pathValidation.data;
+    const { prompt } = bodyValidation.data;
 
     console.error('Preview request for user:', userId, 'prompt:', prompt);
 

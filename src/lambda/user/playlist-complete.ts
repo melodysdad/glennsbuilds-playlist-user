@@ -10,8 +10,9 @@ import {
   successResponse,
   errorResponse,
   notFoundResponse,
-  validationErrorResponse,
 } from '../shared/response.js';
+import { validateSchema } from '../shared/validation.js';
+import { PlaylistCompletePathSchema } from '../../schemas/index.js';
 
 const playlistClient = new PlaylistServiceClient();
 const playlistRepo = new DynamoDBPlaylistRepository();
@@ -20,12 +21,16 @@ export async function handler(
   event: APIGatewayProxyEvent
 ): Promise<APIGatewayProxyResult> {
   try {
-    const userId = event.pathParameters?.userId;
-    const playlistId = event.pathParameters?.playlistId;
-
-    if (!userId || !playlistId) {
-      return validationErrorResponse('userId and playlistId are required');
+    // Validate path parameters
+    const validation = validateSchema(
+      PlaylistCompletePathSchema,
+      event.pathParameters
+    );
+    if (!validation.success) {
+      return validation.response;
     }
+
+    const { userId, playlistId } = validation.data;
 
     console.error('Complete request for user:', userId, 'playlist:', playlistId);
 

@@ -1,6 +1,8 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { DynamoDBUserRepository } from '../../storage/dynamodb-user-repository.js';
 import { successResponse, errorResponse } from '../shared/response.js';
+import { validateSchema } from '../shared/validation.js';
+import { GetPreferencesQuerySchema } from '../../schemas/index.js';
 
 export async function handler(
   event: APIGatewayProxyEvent
@@ -8,14 +10,17 @@ export async function handler(
   try {
     console.error('Get preferences request received');
 
-    // Support both query params and body
-    const userId =
-      event.queryStringParameters?.userId ||
-      JSON.parse(event.body || '{}').userId;
+    // Support both query params and body (backward compatibility)
+    const inputData =
+      event.queryStringParameters || JSON.parse(event.body || '{}');
 
-    if (!userId) {
-      return errorResponse(new Error('userId is required'));
+    // Validate input
+    const validation = validateSchema(GetPreferencesQuerySchema, inputData);
+    if (!validation.success) {
+      return validation.response;
     }
+
+    const { userId } = validation.data;
 
     const userRepo = new DynamoDBUserRepository();
     const profile = await userRepo.getUserProfile(userId);

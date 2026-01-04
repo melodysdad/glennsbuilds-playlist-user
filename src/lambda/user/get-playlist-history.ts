@@ -1,7 +1,8 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { DynamoDBPlaylistRepository } from '../../storage/dynamodb-playlist-repository.js';
 import { successResponse, errorResponse } from '../shared/response.js';
-import { PlaylistStatus } from '../../types.js';
+import { validateSchema } from '../shared/validation.js';
+import { GetPlaylistHistoryQuerySchema } from '../../schemas/index.js';
 
 export async function handler(
   event: APIGatewayProxyEvent
@@ -9,28 +10,17 @@ export async function handler(
   try {
     console.error('Get playlist history request received');
 
-    // Support both query params and body
-    const userId =
-      event.queryStringParameters?.userId ||
-      JSON.parse(event.body || '{}').userId;
-    const limit = parseInt(
-      event.queryStringParameters?.limit ||
-        JSON.parse(event.body || '{}').limit ||
-        '10'
-    );
-    const status = (event.queryStringParameters?.status ||
-      JSON.parse(event.body || '{}').status) as PlaylistStatus | undefined;
+    // Support both query params and body (backward compatibility)
+    const inputData =
+      event.queryStringParameters || JSON.parse(event.body || '{}');
 
-    if (!userId) {
-      return errorResponse(new Error('userId is required'));
+    // Validate input
+    const validation = validateSchema(GetPlaylistHistoryQuerySchema, inputData);
+    if (!validation.success) {
+      return validation.response;
     }
 
-    // Validate status if provided
-    if (status && !['draft', 'expanding', 'complete'].includes(status)) {
-      return errorResponse(
-        new Error('status must be one of: draft, expanding, complete')
-      );
-    }
+    const { userId, limit, status } = validation.data;
 
     // Get playlists from DynamoDB
     const playlistRepo = new DynamoDBPlaylistRepository();

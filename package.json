@@ -5,8 +5,9 @@
   "type": "module",
   "main": "build/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && tsx scripts/generate-openapi.ts",
     "build:watch": "tsc --watch",
+    "generate:openapi": "tsx scripts/generate-openapi.ts",
     "test": "vitest run tests/lambda tests/storage tests/integration tests/tools",
     "test:watch": "vitest tests/lambda tests/storage tests/integration tests/tools",
     "test:coverage": "vitest run --coverage tests/lambda tests/storage tests/integration tests/tools",
@@ -40,12 +41,14 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@asteasolutions/zod-to-openapi": "^8.3.2",
     "@aws-lambda-powertools/parser": "^2.30.0",
     "@aws-sdk/client-dynamodb": "^3.958.0",
     "@aws-sdk/client-lambda": "^3.709.0",
     "@aws-sdk/client-servicediscovery": "^3.709.0",
     "@aws-sdk/util-dynamodb": "^3.958.0",
     "aws-lambda": "^1.0.7",
+    "js-yaml": "^4.1.1",
     "source-map-support": "^0.5.21",
     "zod": "^4.3.4"
   },
@@ -53,6 +56,7 @@
     "@aws-sdk/client-cognito-identity-provider": "^3.709.0",
     "@eslint/js": "^9.17.0",
     "@types/aws-lambda": "^8.10.145",
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^25.0.3",
     "@types/source-map-support": "^0.5.10",
     "@vitest/coverage-v8": "^4.0.16",
