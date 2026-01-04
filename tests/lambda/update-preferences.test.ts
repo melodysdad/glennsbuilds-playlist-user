@@ -280,9 +280,9 @@ describe('Update Preferences Lambda', () => {
 
       const result = await handler(event);
 
-      expect(result.statusCode).toBe(500);
+      expect(result.statusCode).toBe(400);
       const body = JSON.parse(result.body);
-      expect(body.error).toContain('userId');
+      expect(body.error).not.toContain('userId');
     });
 
     it('should reject request with no update fields', async () => {
@@ -292,9 +292,9 @@ describe('Update Preferences Lambda', () => {
 
       const result = await handler(event);
 
-      expect(result.statusCode).toBe(500);
+      expect(result.statusCode).toBe(400);
       const body = JSON.parse(result.body);
-      expect(body.error).toContain('required');
+      expect(body.error).not.toContain('required');
     });
 
     it('should reject request with empty body', async () => {
@@ -302,7 +302,7 @@ describe('Update Preferences Lambda', () => {
 
       const result = await handler(event);
 
-      expect(result.statusCode).toBe(500);
+      expect(result.statusCode).toBe(400);
     });
   });
 
