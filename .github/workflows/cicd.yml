@@ -88,7 +88,6 @@ jobs:
       - name: Deploy to dev with CDK
         run: npm run cdk:deploy:dev -- --require-approval never
         env:
-          CDK_DEFAULT_ACCOUNT: ${{ secrets.AWS_ACCOUNT_ID }}
           CDK_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
 
       - name: Deployment summary
