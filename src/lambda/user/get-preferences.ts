@@ -8,24 +8,33 @@ export async function handler(
   event: APIGatewayProxyEvent
 ): Promise<APIGatewayProxyResult> {
   try {
-    console.error('Get preferences request received');
+    console.log('Get preferences request received');
+    console.log('Query params:', JSON.stringify(event.queryStringParameters));
+    console.log('Body:', event.body);
 
     // Support both query params and body (backward compatibility)
     const inputData =
       event.queryStringParameters || JSON.parse(event.body || '{}');
 
+    console.log('Input data:', JSON.stringify(inputData));
+
     // Validate input
     const validation = validateSchema(GetPreferencesQuerySchema, inputData);
     if (!validation.success) {
+      console.log('Validation failed:', JSON.stringify(validation.response));
       return validation.response;
     }
 
+    console.log('Validation succeeded, userId:', validation.data.userId);
+
     const { userId } = validation.data;
 
+    console.log('Fetching user profile from DynamoDB for userId:', userId);
     const userRepo = new DynamoDBUserRepository();
     const profile = await userRepo.getUserProfile(userId);
 
     if (!profile) {
+      console.log('No profile found for user:', userId);
       return successResponse({
         message: 'No profile found for user',
         userId,
@@ -33,6 +42,7 @@ export async function handler(
       });
     }
 
+    console.log('Profile found, returning success response');
     return successResponse({ userId, profile });
   } catch (error) {
     console.error('Error in getUserPreferences:', error);
